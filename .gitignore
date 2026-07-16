@@ -1,0 +1,57 @@
+# Unity
+[Ll]ibrary/
+[Tt]emp/
+[Oo]bj/
+[Bb]uild/
+[Bb]uilds/
+[Ll]ogs/
+[Uu]ser[Ss]ettings/
+[Mm]emoryCaptures/
+[Rr]ecordings/
+*.pidb.meta
+*.pdb.meta
+*.mdb.meta
+*.apk
+*.aab
+*.unitypackage
+*.app
+*.exe
+sysinfo.txt
+crashlytics-build.properties
+*.stackdump
+
+# IDE
+.vs/
+.idea/
+*.csproj
+*.unityproj
+*.sln
+*.suo
+*.tmp
+*.user
+*.userprefs
+*.pidb
+*.booproj
+*.svd
+*.pdb
+*.mdb
+*.opendb
+*.VC.db
+.DS_Store
+*.swp
+*~
+
+# ArcGIS / secrets
+*.license
+AuthConfig.asset
+Secrets/
+.env
+.env.*
+
+# OSM bulk data (store offline, not in git)
+Data/OSM/**/*.pbf
+Data/OSM/**/*.osm
+!Data/OSM/**/.gitkeep
+
+# Addressables local cache
+ServerData/
