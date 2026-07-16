@@ -11,22 +11,18 @@ namespace Osm4x.Core
     }
 
     /// <summary>
-    /// Central mode switch for strategic globe vs tactical battle.
-    /// Camera and chunk systems subscribe to OnModeChanged.
+    /// Strategic map vs tactical battle. Focus is world XZ (not GPS).
     /// </summary>
     public sealed class GameModeController : MonoBehaviour
     {
         public static GameModeController Instance { get; private set; }
 
         [SerializeField] private GameMode _mode = GameMode.Strategic;
-        [SerializeField] private float strategicMinAltitudeMeters = 50_000f;
-        [SerializeField] private float tacticalMaxAltitudeMeters = 8_000f;
 
         public GameMode Mode => _mode;
         public event Action<GameMode, GameMode> OnModeChanged;
 
-        public double FocusLatitude { get; private set; } = 38.8816;
-        public double FocusLongitude { get; private set; } = -77.0910; // Arlington, VA default
+        public Vector3 FocusWorld { get; private set; }
 
         private void Awake()
         {
@@ -36,12 +32,12 @@ namespace Osm4x.Core
                 return;
             }
             Instance = this;
+            FocusWorld = Vector3.zero;
         }
 
-        public void SetFocus(double latitude, double longitude)
+        public void SetFocus(Vector3 worldPosition)
         {
-            FocusLatitude = latitude;
-            FocusLongitude = longitude;
+            FocusWorld = worldPosition;
         }
 
         public void SetMode(GameMode next)
@@ -50,30 +46,16 @@ namespace Osm4x.Core
             var prev = _mode;
             _mode = next;
             OnModeChanged?.Invoke(prev, next);
-            Debug.Log($"[Osm4x] Mode {prev} → {next} @ {FocusLatitude:F4},{FocusLongitude:F4}");
+            Debug.Log($"[Proc4x] Mode {prev} → {next} @ {FocusWorld}");
         }
 
-        public void SuggestModeFromAltitude(float altitudeMeters)
+        public void BeginBattleAt(Vector3 worldPosition)
         {
-            if (_mode == GameMode.Transition) return;
-            if (altitudeMeters >= strategicMinAltitudeMeters && _mode != GameMode.Strategic)
-                SetMode(GameMode.Strategic);
-        }
-
-        public void BeginBattleAt(double latitude, double longitude)
-        {
-            SetFocus(latitude, longitude);
+            SetFocus(worldPosition);
             SetMode(GameMode.Transition);
         }
 
-        public void EnterTactical()
-        {
-            SetMode(GameMode.Tactical);
-        }
-
-        public void ReturnToStrategic()
-        {
-            SetMode(GameMode.Strategic);
-        }
+        public void EnterTactical() => SetMode(GameMode.Tactical);
+        public void ReturnToStrategic() => SetMode(GameMode.Strategic);
     }
 }
