@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import math
 import random
 from dataclasses import dataclass
 from enum import Enum, auto
@@ -23,6 +24,7 @@ class Biome(Enum):
     SWAMP = auto()
 
 
+# RGB 0–255
 BIOME_COLORS: dict[Biome, Tuple[int, int, int]] = {
     Biome.OCEAN: (30, 70, 140),
     Biome.BEACH: (220, 205, 140),
@@ -48,8 +50,10 @@ class WorldConfig:
     detail_scale: float = 0.05
     temperature_scale: float = 0.004
     moisture_scale: float = 0.006
-    chunk_size: int = 16
+    chunk_size: int = 16  # world cells per chunk side
     cell_size: float = 1.0
+
+    # noise offsets derived from seed
     off_a: Tuple[float, float] = (0.0, 0.0)
     off_b: Tuple[float, float] = (0.0, 0.0)
     off_c: Tuple[float, float] = (0.0, 0.0)
@@ -71,12 +75,15 @@ def _lerp(a: np.ndarray, b: np.ndarray, t: np.ndarray) -> np.ndarray:
 
 
 def _grad(h: np.ndarray, x: np.ndarray, y: np.ndarray) -> np.ndarray:
+    # 4 diagonal gradients from low bits of hash
     u = np.where(h & 1, x, -x)
     v = np.where(h & 2, y, -y)
     return u + v
 
 
 class Noise:
+    """Vectorized value-noise-ish Perlin using a perm table (deterministic)."""
+
     def __init__(self, seed: int) -> None:
         rng = np.random.default_rng(seed & 0xFFFFFFFF)
         p = np.arange(256, dtype=np.int32)
@@ -90,13 +97,16 @@ class Noise:
         yf = y - np.floor(y)
         u = _fade(xf)
         v = _fade(yf)
+
         perm = self.perm
         aa = perm[perm[xi] + yi]
         ab = perm[perm[xi] + yi + 1]
         ba = perm[perm[xi + 1] + yi]
         bb = perm[perm[xi + 1] + yi + 1]
+
         x1 = _lerp(_grad(aa, xf, yf), _grad(ba, xf - 1, yf), u)
         x2 = _lerp(_grad(ab, xf, yf - 1), _grad(bb, xf - 1, yf - 1), u)
+        # Map roughly to 0..1
         return (_lerp(x1, x2, v) + 1.0) * 0.5
 
 
@@ -143,14 +153,20 @@ class WorldSampler:
         land_h = c.base_height + land * c.height_amplitude * (0.35 + elev * 0.65)
         return np.where(ocean, ocean_h, land_h)
 
-    def classify_biome_grid(self, wx: np.ndarray, wz: np.ndarray):
+    def classify_biome_grid(
+        self, wx: np.ndarray, wz: np.ndarray
+    ) -> Tuple[np.ndarray, np.ndarray]:
+        """Returns (height HxW float, biome_id HxW int)."""
         c = self.cfg
         continental = self.continental(wx, wz)
         elev = self.elevation(wx, wz)
         temp = self.temperature(wx, wz)
         moist = self.moisture(wx, wz)
         height = self.surface_height(wx, wz)
+
+        # Default plains
         biome = np.full(wx.shape, Biome.PLAINS.value, dtype=np.int16)
+
         ocean = continental < c.sea_level
         beach = (~ocean) & (continental < c.sea_level + 0.03)
         mountains = (~ocean) & (elev > 0.78)
@@ -161,6 +177,7 @@ class WorldSampler:
         savanna = (~ocean) & (temp > 0.55) & (moist < 0.45) & ~desert
         swamp = (~ocean) & (moist > 0.7) & (temp > 0.4) & (elev < 0.45)
         forest = (~ocean) & (moist > 0.5) & ~swamp & ~desert & ~savanna & ~cold & ~mountains
+
         biome[ocean] = Biome.OCEAN.value
         biome[beach] = Biome.BEACH.value
         biome[mountains] = Biome.MOUNTAINS.value
@@ -170,10 +187,12 @@ class WorldSampler:
         biome[savanna] = Biome.SAVANNA.value
         biome[swamp] = Biome.SWAMP.value
         biome[forest] = Biome.FOREST.value
+
         return height, biome
 
 
 def biome_color_lut() -> np.ndarray:
+    """Shape (max_id+1, 3) uint8."""
     max_id = max(b.value for b in Biome)
     lut = np.zeros((max_id + 1, 3), dtype=np.uint8)
     for b, rgb in BIOME_COLORS.items():
