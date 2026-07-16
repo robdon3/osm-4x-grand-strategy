@@ -5,65 +5,92 @@ using UnityEngine;
 namespace Osm4x.Chunks
 {
     /// <summary>
-    /// Maintains a (2*radius+1)^2 window of chunks around the current focus.
-    /// Default 5x5 with 0.5 degree tiles for Phase 2 proof of concept.
+    /// Minecraft-style streaming: keep a square of chunks loaded around the focus.
     /// </summary>
     public sealed class ChunkManager : MonoBehaviour
     {
-        [SerializeField] private double degreesPerChunk = 0.5;
-        [SerializeField] private int loadRadius = 2;
-        [SerializeField] private MapChunk chunkPrefab;
+        [SerializeField] private int loadRadius = 3;
         [SerializeField] private Transform chunkRoot;
+        [SerializeField] private Transform followTarget;
+        [SerializeField] private Material terrainMaterial;
+        [SerializeField] private float refreshInterval = 0.25f;
 
         private readonly Dictionary<ChunkCoord, MapChunk> _loaded = new();
         private ChunkCoord _center;
-
-        private void OnEnable()
-        {
-            if (GameModeController.Instance != null)
-                GameModeController.Instance.OnModeChanged += HandleModeChanged;
-        }
-
-        private void OnDisable()
-        {
-            if (GameModeController.Instance != null)
-                GameModeController.Instance.OnModeChanged -= HandleModeChanged;
-        }
+        private float _nextRefresh;
+        private Material _runtimeMaterial;
 
         private void Start()
         {
             if (chunkRoot == null)
                 chunkRoot = transform;
-            RefreshAroundFocus();
+
+            if (terrainMaterial == null)
+            {
+                var shader = Shader.Find("Proc4x/VertexColorUnlit")
+                             ?? Shader.Find("Sprites/Default")
+                             ?? Shader.Find("Universal Render Pipeline/Unlit");
+                _runtimeMaterial = new Material(shader);
+            }
+            else
+            {
+                _runtimeMaterial = terrainMaterial;
+            }
+
+            ForceRefresh();
         }
 
-        private void HandleModeChanged(GameMode prev, GameMode next)
+        private void Update()
         {
-            if (next == GameMode.Tactical || next == GameMode.Transition)
-                RefreshAroundFocus();
+            if (Time.time < _nextRefresh) return;
+            _nextRefresh = Time.time + refreshInterval;
+
+            Vector3 focus = ResolveFocus();
+            if (GameModeController.Instance != null)
+                GameModeController.Instance.SetFocus(focus);
+
+            UpdateCenter(focus);
         }
 
-        public void RefreshAroundFocus()
+        private Vector3 ResolveFocus()
         {
-            var gm = GameModeController.Instance;
-            if (gm == null) return;
-            UpdateCenter(gm.FocusLatitude, gm.FocusLongitude);
+            if (followTarget != null)
+                return followTarget.position;
+            if (Camera.main != null)
+                return Camera.main.transform.position;
+            return GameModeController.Instance != null
+                ? GameModeController.Instance.FocusWorld
+                : Vector3.zero;
         }
 
-        public void UpdateCenter(double latitude, double longitude)
+        public void ForceRefresh()
         {
-            var newCenter = ChunkCoord.FromLatLon(latitude, longitude, degreesPerChunk);
-            if (newCenter.Equals(_center) && _loaded.Count > 0) return;
+            UpdateCenter(ResolveFocus(), force: true);
+        }
+
+        public void UpdateCenter(Vector3 world, bool force = false)
+        {
+            var cfg = WorldConfig.Instance;
+            if (cfg == null)
+            {
+                Debug.LogWarning("[Proc4x] WorldConfig missing — add it to the scene.");
+                return;
+            }
+
+            var newCenter = ChunkCoord.FromWorld(world, cfg);
+            if (!force && newCenter.Equals(_center) && _loaded.Count > 0)
+                return;
+
             _center = newCenter;
-            SyncWindow();
+            SyncWindow(cfg);
         }
 
-        private void SyncWindow()
+        private void SyncWindow(WorldConfig cfg)
         {
             var needed = new HashSet<ChunkCoord>();
-            for (int dy = -loadRadius; dy <= loadRadius; dy++)
+            for (int dz = -loadRadius; dz <= loadRadius; dz++)
             for (int dx = -loadRadius; dx <= loadRadius; dx++)
-                needed.Add(new ChunkCoord(_center.X + dx, _center.Y + dy));
+                needed.Add(new ChunkCoord(_center.X + dx, _center.Z + dz));
 
             var toRemove = new List<ChunkCoord>();
             foreach (var kv in _loaded)
@@ -80,27 +107,17 @@ namespace Osm4x.Chunks
             foreach (var c in needed)
             {
                 if (_loaded.ContainsKey(c)) continue;
-                var chunk = SpawnChunk(c);
-                _loaded[c] = chunk;
+                _loaded[c] = SpawnChunk(c, cfg);
             }
-
-            Debug.Log($"[Osm4x] Chunk window center={_center} loaded={_loaded.Count}");
         }
 
-        private MapChunk SpawnChunk(ChunkCoord coord)
+        private MapChunk SpawnChunk(ChunkCoord coord, WorldConfig cfg)
         {
-            MapChunk chunk;
-            if (chunkPrefab != null)
-                chunk = Instantiate(chunkPrefab, chunkRoot);
-            else
-            {
-                var go = new GameObject(coord.ToString(), typeof(MapChunk));
-                go.transform.SetParent(chunkRoot, false);
-                chunk = go.GetComponent<MapChunk>();
-            }
-
-            chunk.Initialize(coord);
-            chunk.MarkLoaded();
+            var go = new GameObject(coord.ToString());
+            go.transform.SetParent(chunkRoot, false);
+            var chunk = go.AddComponent<MapChunk>();
+            var mesh = ChunkMeshBuilder.Build(coord, cfg);
+            chunk.Initialize(coord, mesh, _runtimeMaterial);
             return chunk;
         }
 

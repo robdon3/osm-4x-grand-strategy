@@ -4,20 +4,23 @@ using UnityEngine;
 namespace Osm4x.CameraSystem
 {
     /// <summary>
-    /// Lightweight orbit/zoom around a globe origin. Replace with Cinemachine
-    /// FreeLook when available; keep altitude hooks for mode + LOD.
+    /// Free RTS-style camera over the procedural map.
     /// </summary>
     public sealed class StrategicCameraController : MonoBehaviour
     {
-        [SerializeField] private Transform globeCenter;
-        [SerializeField] private float globeRadius = 1000f;
-        [SerializeField] private float distance = 2500f;
-        [SerializeField] private float minDistance = 120f;
-        [SerializeField] private float maxDistance = 8000f;
-        [SerializeField] private float orbitSpeed = 40f;
-        [SerializeField] private float zoomSpeed = 500f;
-        [SerializeField] private float pitch = 35f;
-        [SerializeField] private float yaw;
+        [SerializeField] private float moveSpeed = 40f;
+        [SerializeField] private float fastMultiplier = 3f;
+        [SerializeField] private float zoomSpeed = 80f;
+        [SerializeField] private float minHeight = 8f;
+        [SerializeField] private float maxHeight = 400f;
+        [SerializeField] private float pitch = 50f;
+
+        private void Start()
+        {
+            transform.rotation = Quaternion.Euler(pitch, transform.eulerAngles.y, 0f);
+            if (transform.position.y < minHeight)
+                transform.position = new Vector3(transform.position.x, 80f, transform.position.z);
+        }
 
         private void Update()
         {
@@ -25,28 +28,28 @@ namespace Osm4x.CameraSystem
                 GameModeController.Instance.Mode == GameMode.Transition)
                 return;
 
-            float h = Input.GetAxis("Horizontal");
-            float v = Input.GetAxis("Vertical");
-            yaw += h * orbitSpeed * Time.deltaTime;
-            pitch = Mathf.Clamp(pitch - v * orbitSpeed * Time.deltaTime, 5f, 85f);
+            float speed = moveSpeed * (Input.GetKey(KeyCode.LeftShift) ? fastMultiplier : 1f);
+            Vector3 forward = transform.forward;
+            forward.y = 0f;
+            forward.Normalize();
+            Vector3 right = transform.right;
+            right.y = 0f;
+            right.Normalize();
+
+            Vector3 delta = Vector3.zero;
+            delta += forward * Input.GetAxisRaw("Vertical");
+            delta += right * Input.GetAxisRaw("Horizontal");
+            if (delta.sqrMagnitude > 1f) delta.Normalize();
+
+            transform.position += delta * speed * Time.deltaTime;
 
             float scroll = Input.mouseScrollDelta.y;
-            distance = Mathf.Clamp(distance - scroll * zoomSpeed * Time.deltaTime * 10f, minDistance, maxDistance);
-
-            Vector3 center = globeCenter != null ? globeCenter.position : Vector3.zero;
-            Quaternion rot = Quaternion.Euler(pitch, yaw, 0f);
-            transform.position = center + rot * (Vector3.back * distance);
-            transform.LookAt(center);
-
-            float altitude = GeoMath.ApproximateAltitudeMeters(transform.position - center, globeRadius);
-            GameModeController.Instance?.SuggestModeFromAltitude(altitude);
-        }
-
-        public void FocusLatLon(double lat, double lon)
-        {
-            Vector3 onSphere = GeoMath.LatLonToUnitSphere(lat, lon);
-            yaw = Mathf.Atan2(onSphere.x, onSphere.z) * Mathf.Rad2Deg;
-            pitch = 40f;
+            float y = Mathf.Clamp(
+                transform.position.y - scroll * zoomSpeed * Time.deltaTime * 10f,
+                minHeight,
+                maxHeight);
+            transform.position = new Vector3(transform.position.x, y, transform.position.z);
+            transform.rotation = Quaternion.Euler(pitch, transform.eulerAngles.y, 0f);
         }
     }
 }

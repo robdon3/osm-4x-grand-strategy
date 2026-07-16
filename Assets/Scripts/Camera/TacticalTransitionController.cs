@@ -5,16 +5,11 @@ using UnityEngine;
 
 namespace Osm4x.CameraSystem
 {
-    /// <summary>
-    /// Cinematic fly-in from strategic orbit to a GPS focus, then hand off to tactical.
-    /// Upgrade path: Cinemachine smooth path + DOF/vignette volumes.
-    /// </summary>
     public sealed class TacticalTransitionController : MonoBehaviour
     {
         [SerializeField] private Transform cameraTransform;
-        [SerializeField] private float globeRadius = 1000f;
-        [SerializeField] private float tacticalDistance = 180f;
-        [SerializeField] private float durationSeconds = 2.5f;
+        [SerializeField] private float tacticalHeight = 25f;
+        [SerializeField] private float durationSeconds = 1.8f;
         [SerializeField] private AnimationCurve ease = AnimationCurve.EaseInOut(0, 0, 1, 1);
         [SerializeField] private ChunkManager chunkManager;
 
@@ -39,27 +34,27 @@ namespace Osm4x.CameraSystem
         private IEnumerator FlyIn()
         {
             var cam = cameraTransform != null ? cameraTransform : Camera.main?.transform;
-            if (cam == null)
+            var gm = GameModeController.Instance;
+            if (cam == null || gm == null)
             {
-                GameModeController.Instance?.EnterTactical();
+                gm?.EnterTactical();
                 yield break;
             }
 
-            var gm = GameModeController.Instance;
-            Vector3 target = GeoMath.LatLonToWorld(gm.FocusLatitude, gm.FocusLongitude, globeRadius);
-            Vector3 endPos = target.normalized * (globeRadius + tacticalDistance);
-            Vector3 startPos = cam.position;
+            Vector3 end = gm.FocusWorld;
+            end.y = tacticalHeight;
+            Vector3 start = cam.position;
             Quaternion startRot = cam.rotation;
-            Quaternion endRot = Quaternion.LookRotation(target - endPos, Vector3.up);
+            Quaternion endRot = Quaternion.Euler(55f, cam.eulerAngles.y, 0f);
 
-            chunkManager?.UpdateCenter(gm.FocusLatitude, gm.FocusLongitude);
+            chunkManager?.UpdateCenter(end, force: true);
 
             float t = 0f;
             while (t < 1f)
             {
                 t += Time.deltaTime / Mathf.Max(0.01f, durationSeconds);
                 float u = ease.Evaluate(Mathf.Clamp01(t));
-                cam.position = Vector3.Lerp(startPos, endPos, u);
+                cam.position = Vector3.Lerp(start, end, u);
                 cam.rotation = Quaternion.Slerp(startRot, endRot, u);
                 yield return null;
             }
@@ -72,11 +67,11 @@ namespace Osm4x.CameraSystem
         {
             if (Input.GetKeyDown(KeyCode.B) && GameModeController.Instance != null)
             {
-                var gm = GameModeController.Instance;
-                gm.BeginBattleAt(gm.FocusLatitude, gm.FocusLongitude);
+                var cam = Camera.main != null ? Camera.main.transform.position : Vector3.zero;
+                GameModeController.Instance.BeginBattleAt(cam);
             }
-            if (Input.GetKeyDown(KeyCode.N) && GameModeController.Instance != null)
-                GameModeController.Instance.ReturnToStrategic();
+            if (Input.GetKeyDown(KeyCode.N))
+                GameModeController.Instance?.ReturnToStrategic();
         }
 #endif
     }

@@ -1,39 +1,38 @@
 using System;
+using Osm4x.Core;
+using UnityEngine;
 
 namespace Osm4x.Chunks
 {
-    /// <summary>
-    /// Discrete lat/long tile index. Chunk size defaults to 0.5 degrees.
-    /// </summary>
+    /// <summary>Integer chunk grid coordinate (Minecraft-style XZ).</summary>
     public readonly struct ChunkCoord : IEquatable<ChunkCoord>
     {
         public readonly int X;
-        public readonly int Y;
+        public readonly int Z;
 
-        public ChunkCoord(int x, int y)
+        public ChunkCoord(int x, int z)
         {
             X = x;
-            Y = y;
+            Z = z;
         }
 
-        public static ChunkCoord FromLatLon(double latitude, double longitude, double degreesPerChunk)
+        public static ChunkCoord FromWorld(Vector3 world, WorldConfig cfg)
         {
-            int y = (int)Math.Floor(latitude / degreesPerChunk);
-            int x = (int)Math.Floor(longitude / degreesPerChunk);
-            return new ChunkCoord(x, y);
+            float size = cfg.ChunkSize * cfg.CellSize;
+            int x = Mathf.FloorToInt(world.x / size);
+            int z = Mathf.FloorToInt(world.z / size);
+            return new ChunkCoord(x, z);
         }
 
-        public void GetBounds(double degreesPerChunk, out double minLat, out double minLon, out double maxLat, out double maxLon)
+        public Vector3 OriginWorld(WorldConfig cfg)
         {
-            minLat = Y * degreesPerChunk;
-            minLon = X * degreesPerChunk;
-            maxLat = minLat + degreesPerChunk;
-            maxLon = minLon + degreesPerChunk;
+            float size = cfg.ChunkSize * cfg.CellSize;
+            return new Vector3(X * size, 0f, Z * size);
         }
 
-        public bool Equals(ChunkCoord other) => X == other.X && Y == other.Y;
+        public bool Equals(ChunkCoord other) => X == other.X && Z == other.Z;
         public override bool Equals(object obj) => obj is ChunkCoord other && Equals(other);
-        public override int GetHashCode() => HashCode.Combine(X, Y);
-        public override string ToString() => $"Chunk({X},{Y})";
+        public override int GetHashCode() => HashCode.Combine(X, Z);
+        public override string ToString() => $"Chunk({X},{Z})";
     }
 }

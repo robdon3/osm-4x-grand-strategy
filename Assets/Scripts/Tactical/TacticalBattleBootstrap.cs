@@ -3,14 +3,11 @@ using UnityEngine;
 
 namespace Osm4x.Tactical
 {
-    /// <summary>
-    /// Spawns placeholder units and notes NavMesh bake hooks when entering tactical mode.
-    /// </summary>
     public sealed class TacticalBattleBootstrap : MonoBehaviour
     {
         [SerializeField] private GameObject unitPrefab;
         [SerializeField] private int placeholderUnitCount = 6;
-        [SerializeField] private float spawnRadius = 40f;
+        [SerializeField] private float spawnRadius = 20f;
 
         private void OnEnable()
         {
@@ -32,10 +29,14 @@ namespace Osm4x.Tactical
 
         private void SpawnPlaceholders()
         {
+            Vector3 center = GameModeController.Instance != null
+                ? GameModeController.Instance.FocusWorld
+                : transform.position;
+
             for (int i = 0; i < placeholderUnitCount; i++)
             {
                 Vector2 disk = Random.insideUnitCircle * spawnRadius;
-                Vector3 pos = transform.position + new Vector3(disk.x, 0f, disk.y);
+                Vector3 pos = new Vector3(center.x + disk.x, center.y + 2f, center.z + disk.y);
                 if (unitPrefab != null)
                     Instantiate(unitPrefab, pos, Quaternion.identity, transform);
                 else
@@ -44,11 +45,9 @@ namespace Osm4x.Tactical
                     go.name = $"Unit_{i}";
                     go.transform.SetParent(transform, false);
                     go.transform.position = pos;
-                    go.transform.localScale = new Vector3(2f, 3f, 2f);
                 }
             }
-
-            Debug.Log("[Osm4x] Tactical placeholders spawned. Bake NavMesh per chunk next.");
+            Debug.Log("[Proc4x] Tactical units on generated terrain.");
         }
     }
 }
