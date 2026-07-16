@@ -1,48 +1,36 @@
-# Roadmap — Oneshot to basic 3D globe prototype
+# Roadmap — Procedural world MVP
 
-Solo MVP map target: **3–6 weeks**.
+## Phase 0 — Setup
 
-## Phase 0 — Setup (Day 0–3) scaffolded in repo
+- [x] Pivot docs + code off OSM/ArcGIS to generative world
+- [x] Seed, noise, biome, chunk mesh, stream manager scaffolds
+- [ ] Unity 6 URP project + scripts import
+- [ ] Play mode: walk/orbit over generated terrain
 
-- [x] GitHub repository + architecture docs
-- [x] Core C# prototypes (geo, camera, chunks, mode)
-- [ ] Install Unity Hub + Unity 6.x LTS (Apple Silicon)
-- [ ] Create URP 3D project; import `Assets/Scripts`
-- [ ] Import ArcGIS Maps SDK; free Esri signup
-- [ ] Scene: ArcGIS Map, globe projection, OSM basemap + 3D buildings
-- [ ] Cinemachine FreeLook / orbit + zoom bound to altitude
+## Phase 1 — World feel
 
-## Phase 1 — Basic globe with OSM (Day 4–10)
+- [ ] Tune noise for continents + islands
+- [ ] Biome colors + materials
+- [ ] Strategic hex overlay
+- [ ] Seed entry UI
 
-- [ ] Small OSM extract (e.g. Arlington, VA via Geofabrik) for offline tests
-- [ ] Layer stacking: terrain + OSM vectors via Map Creator / SDK
-- [ ] Wire `GeoMath` + ArcGIS surface placement
-- [ ] Hex/tile overlay (`HexGridOverlay`) on strategic view
-- [ ] Flyover test: global → city scale without hard hitches
+## Phase 2 — 4X hooks
 
-## Phase 2 — Chunking proof + tactical teaser (Week 2–3)
+- [ ] Fog of war
+- [ ] City / army placement on land
+- [ ] Tactical dive into a hex
+- [ ] NavMesh on tactical meshes
 
-- [ ] `ChunkManager` 5×5 load window with unload
-- [ ] Battle-start input → `TacticalTransitionController` fly-in to GPS
-- [ ] Detailed chunk: building extrude / OSM height tags
-- [ ] Placeholder units on roads + simple NavMesh bake per chunk
+## Phase 3 — Polish
 
-## Phase 3 — Polish & expand (ongoing)
+- [ ] Trees/props by biome
+- [ ] Rivers
+- [ ] Optional full voxels/caves
+- [ ] Profile under 8GB on M4
 
-- [ ] Procedural foliage/fill in tagged areas
-- [ ] Profile on M4: Unity Profiler + Metal GPU capture
-- [ ] Fog of war, city markers, basic 4X UI shell
-- [ ] Addressables packaging for chunk prefabs
+## Definition of done
 
-## Non-goals (MVP)
-
-- Full economy / diplomacy / multiplayer
-- Global offline entire-planet mesh
-- Mapbox dependency
-
-## Definition of done — MVP map
-
-1. Orbit a 3D globe with real basemap.
-2. Zoom/fly to a real lat/lon city.
-3. See extruded buildings / roads at tactical scale.
-4. Chunk stream stays under ~8GB RAM in profiler.
+1. New seed → different world.
+2. Same seed → identical terrain.
+3. Chunks stream while moving.
+4. Clear biomes and coastlines.
