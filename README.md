@@ -1,28 +1,25 @@
-# Proc4x — Procedural 4X Map (local Mac)
+# Proc4x — 12×6 procedural skirmish (local Mac)
 
-**Minecraft-style generative world** you run natively on macOS.  
-No Unity. No real maps. No cloud APIs.
+A tiny **4X-style skirmish** on a fixed **12×6** board.  
+No Unity. No real maps. Python + pygame only.
 
-| | |
-|---|---|
-| **Runtime** | Python 3.11+ (tested 3.14 on Apple Silicon) |
-| **Graphics** | pygame (SDL) |
-| **World** | Seeded noise → height + biomes + chunk streaming |
+## What you do
 
----
+1. A **procedural map** generates from a seed (biomes + ocean).
+2. You and the **enemy** each get a **capital territory** and **one army**.
+3. On your turn: **select your army** → **move** to a green highlighted tile (capture land).
+4. Step onto the **enemy army** to **fight** (you win the fight and take the tile).
+5. Press **E** to **end turn** — the enemy AI moves.
+6. **Destroy the enemy army** to win.
 
-## Run on your Mac
+## Run
 
 ```bash
 cd ~/osm-4x-grand-strategy
 ./run.sh
-# or with a seed:
+# or:
 ./run.sh 12345
 ```
-
-First run creates `.venv` and installs `pygame` + `numpy`.
-
-Manual:
 
 ```bash
 python3 -m venv .venv
@@ -31,56 +28,37 @@ pip install -r requirements.txt
 python -m proc4x.app 42
 ```
 
-### Controls
+## Controls
 
 | Key | Action |
 |-----|--------|
-| **WASD** / arrows | Pan map |
-| **Shift** | Faster pan |
-| **Scroll** / `-` `=` | Zoom |
-| **R** | Random new world (new seed) |
-| **[** **]** | Seed −1 / +1 |
-| **F** | Toggle height shading |
+| **WASD** / arrows | Move cursor |
+| **Click** / Enter / Space | Select army or move there |
+| **E** | End turn (enemy moves) |
+| **R** | New random map + game |
+| **[** **]** | Seed ±1 |
+| **F** | Height shading |
 | **ESC** | Quit |
 
----
+## Legend
 
-## How generation works
+- **Blue circle** — your army  
+- **Red circle** — enemy army  
+- **Blue tint** — your land  
+- **Red tint** — enemy land  
+- **Green overlay** — reachable this turn  
 
-```
-Seed
-  ├─ continental noise → land vs ocean
-  ├─ elevation noise   → mountains / plains
-  ├─ temperature       → snow / desert bands
-  └─ moisture          → forest / swamp / savanna
-        │
-        ▼
-  Biome colors + height shading
-        │
-        ▼
-  Chunks stream around the camera (Minecraft-style)
-```
-
-Same seed → same world every time.
-
----
-
-## Project layout
+## Layout
 
 ```
 proc4x/
-  world.py      # noise, height, biomes
-  app.py        # pygame viewer + camera
-run.sh          # one-command launch
+  world.py   # noise, biomes
+  game.py    # turns, ownership, combat, AI
+  app.py     # pygame UI
+run.sh
 requirements.txt
-docs/           # design notes
-Assets/         # legacy Unity C# (optional / unused)
 ```
-
-Unity is **not required**. The `Assets/` C# folder is leftover from an earlier experiment and can be ignored.
-
----
 
 ## License
 
-MIT — see [LICENSE](LICENSE).
+MIT
