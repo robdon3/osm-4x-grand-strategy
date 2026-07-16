@@ -1,73 +1,85 @@
-# Procedural 4X Grand Strategy
+# Proc4x — Procedural 4X Map (local Mac)
 
-**Minecraft-style generative world** + 4X grand strategy for macOS (Apple Silicon / M4, 16GB target).
-
-No real maps. No OSM. No ArcGIS. Every world is **seed-driven noise** — continents, biomes, height, and tactical terrain all come from the same generator.
+**Minecraft-style generative world** you run natively on macOS.  
+No Unity. No real maps. No cloud APIs.
 
 | | |
 |---|---|
-| **Engine** | Unity 6.x LTS (URP) |
-| **World** | Procedural (layered noise + biomes + chunks) |
-| **Platform** | macOS Apple Silicon (Metal) |
-| **Language** | C# · Burst/Jobs-ready hot paths |
-| **Repo** | https://github.com/robdon3/osm-4x-grand-strategy |
+| **Runtime** | Python 3.11+ (tested 3.14 on Apple Silicon) |
+| **Graphics** | pygame (SDL) |
+| **World** | Seeded noise → height + biomes + chunk streaming |
 
 ---
 
-## Vision
+## Run on your Mac
 
-- **Strategic layer** — abstract hex/tile map over a generated planet: continents, oceans, biomes, resources. Civ-style free camera.
-- **Tactical layer** — same seed, higher detail: chunked terrain (heightfield/voxel-style) for battles, cover, and movement.
-- **Key enabler** — infinite (or huge finite) **chunk streaming** like Minecraft: only keep a window of chunks loaded around the focus.
+```bash
+cd ~/osm-4x-grand-strategy
+./run.sh
+# or with a seed:
+./run.sh 12345
+```
+
+First run creates `.venv` and installs `pygame` + `numpy`.
+
+Manual:
+
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m proc4x.app 42
+```
+
+### Controls
+
+| Key | Action |
+|-----|--------|
+| **WASD** / arrows | Pan map |
+| **Shift** | Faster pan |
+| **Scroll** / `-` `=` | Zoom |
+| **R** | Random new world (new seed) |
+| **[** **]** | Seed −1 / +1 |
+| **F** | Toggle height shading |
+| **ESC** | Quit |
+
+---
 
 ## How generation works
 
 ```
-WorldSeed
-   │
-   ├─ Continental noise  → land vs ocean
-   ├─ Height noise       → mountains / plains
-   ├─ Temperature noise  → poles ↔ equator band
-   └─ Moisture noise     → desert / forest / swamp
-         │
-         ▼
-      Biome table  → surface type + colors + resources
-         │
-         ▼
-   Chunk mesh (16×16 or 32×32 columns)
+Seed
+  ├─ continental noise → land vs ocean
+  ├─ elevation noise   → mountains / plains
+  ├─ temperature       → snow / desert bands
+  └─ moisture          → forest / swamp / savanna
+        │
+        ▼
+  Biome colors + height shading
+        │
+        ▼
+  Chunks stream around the camera (Minecraft-style)
 ```
 
-Same seed + same chunk coords always produce the same terrain (deterministic, multiplayer-safe later).
+Same seed → same world every time.
 
-## Repo layout
+---
+
+## Project layout
 
 ```
-docs/                     Architecture, roadmap, setup
-Assets/Scripts/
-  Core/                   Seed, game modes
-  WorldGen/               Noise, biomes, height sampling
-  Chunks/                 Chunk coords, mesh build, stream manager
-  Camera/                 Strategic orbit + tactical zoom
-  Strategy/               Hex overlay
-  Tactical/               Battle bootstrap
+proc4x/
+  world.py      # noise, height, biomes
+  app.py        # pygame viewer + camera
+run.sh          # one-command launch
+requirements.txt
+docs/           # design notes
+Assets/         # legacy Unity C# (optional / unused)
 ```
 
-## Quick start
+Unity is **not required**. The `Assets/` C# folder is leftover from an earlier experiment and can be ignored.
 
-1. Install **Unity Hub** + **Unity 6.x LTS** (Apple Silicon).
-2. Create a **3D (URP)** project and copy `Assets/Scripts/` into it.
-3. Empty scene → add empty `GameSystems` with:
-   - `WorldConfig` (set seed)
-   - `ChunkManager`
-   - `GameModeController`
-   - Camera + `StrategicCameraController`
-4. Press Play — chunks should stream around the origin.
-
-See [docs/SETUP.md](docs/SETUP.md) and [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md).
-
-## Status
-
-**Pivoted off real-world GIS** → pure procedural generation (Minecraft-like).
+---
 
 ## License
 

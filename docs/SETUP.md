@@ -1,32 +1,48 @@
-# Setup — Procedural 4X (Unity)
+# Setup — local Mac (no Unity)
 
-## 1. Unity
+## Prerequisites
 
-1. Install Unity Hub + Unity 6.x LTS (Apple Silicon).
-2. New project → **3D (URP)**.
-
-## 2. Import scripts
+- macOS
+- Python 3.11+ (`python3 --version`)
 
 ```bash
-git clone https://github.com/robdon3/osm-4x-grand-strategy.git
-cp -R osm-4x-grand-strategy/Assets/Scripts /path/to/YourProject/Assets/
-cp -R osm-4x-grand-strategy/Assets/Shaders /path/to/YourProject/Assets/
+# if needed:
+brew install python
 ```
 
-No map API keys required.
+## Install & run
 
-## 3. Minimal scene
+```bash
+cd ~/osm-4x-grand-strategy
+chmod +x run.sh
+./run.sh
+```
 
-1. Empty `GameSystems` with `WorldConfig`, `GameModeController`, `ChunkManager`.
-2. Main Camera + `StrategicCameraController`.
-3. Play. WASD move, scroll zoom. Chunks stream around the camera.
+Or:
 
-## 4. WorldConfig tunables
+```bash
+python3 -m venv .venv
+source .venv/bin/activate
+pip install -r requirements.txt
+python -m proc4x.app 42
+```
 
-| Field | Meaning |
-|-------|---------|
-| Seed | World identity |
-| Sea Level | Ocean threshold |
-| Height Amplitude | Mountains |
-| Chunk Size | 16 recommended |
-| Load Radius | Streaming ring |
+## Troubleshooting
+
+**Black window / no display**  
+- You’re on a machine with a GUI session (not pure SSH without display).
+
+**`ModuleNotFoundError: pygame`**  
+```bash
+source .venv/bin/activate
+pip install -r requirements.txt
+```
+
+**No on-screen text**  
+Some pygame 3.14 wheels ship without the font module. Map still works; HUD falls back to color bars.
+
+## Not used
+
+- Unity
+- ArcGIS / Mapbox / OSM
+- Network (fully offline)
