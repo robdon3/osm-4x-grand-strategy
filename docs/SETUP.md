@@ -1,25 +1,21 @@
-<<<<<<< HEAD
-# Setup — local Mac (no Unity)
+# Setup
 
-## Prerequisites
+The game you can run is the Python prototype. The Unity C# is source for a Phase 0 scaffold, not a project you can open and play.
 
-- macOS
-- Python 3.11+ (`python3 --version`)
+## Prototype
 
-```bash
-# if needed:
-brew install python
-```
+Python 3.10 or newer, and a display. `requirements.txt` is `pygame>=2.5.0` and `numpy>=1.26.0`.
 
-## Install & run
+From the repo root:
 
 ```bash
-cd ~/osm-4x-grand-strategy
-chmod +x run.sh
 ./run.sh
+./run.sh 12345
 ```
 
-Or:
+`run.sh` creates `.venv` if it is missing, installs `requirements.txt`, and runs `python -m proc4x.app`. The optional integer is the map seed. The default seed is 42. A non-integer argument prints `Usage: python -m proc4x.app [seed]` and exits with status 2.
+
+The same steps by hand:
 
 ```bash
 python3 -m venv .venv
@@ -28,82 +24,41 @@ pip install -r requirements.txt
 python -m proc4x.app 42
 ```
 
-## Troubleshooting
+### If it does not start
 
-**Black window / no display**  
-- You’re on a machine with a GUI session (not pure SSH without display).
+**No window.** pygame calls `display.set_mode`. Run it in a session that has a display.
 
-**`ModuleNotFoundError: pygame`**  
+**`ModuleNotFoundError: pygame` or `numpy`.** The install went to a different interpreter than the one you are running. Use the venv:
+
 ```bash
 source .venv/bin/activate
 pip install -r requirements.txt
 ```
 
-**No on-screen text**  
-Some pygame 3.14 wheels ship without the font module. Map still works; HUD falls back to color bars.
+**No HUD text.** If `pygame.font` fails to import or init, `app.py` still draws the map. The top bar falls back to a status swatch and turn marks, and the legend is color squares without labels.
 
-## Not used
+The prototype does not use Unity, ArcGIS, OpenStreetMap, or the network.
 
-- Unity
-- ArcGIS / Mapbox / OSM
-- Network (fully offline)
-=======
-# Setup — macOS Apple Silicon
+## Unity scripts
 
-## 1. Unity
+This repo does not contain `ProjectSettings`, scenes, or a package manifest, and it does not pin a Unity editor version. The scripts do not reference the ArcGIS SDK, Cinemachine, or a navigation package.
 
-1. Install [Unity Hub](https://unity.com/download).
-2. Install **Unity 6.x LTS** with modules:
-   - Mac Build Support (Apple Silicon)
-   - Documentation (optional)
-3. New project → **3D (URP)** → name e.g. `Osm4x`.
+To compile them you create your own Unity project and copy both of these trees into its `Assets/` folder:
 
-## 2. Import this repo’s scripts
+- `Assets/Scripts/`
+- `Assets/Shaders/VertexColorUnlit.shader` (`Proc4x/VertexColorUnlit`)
 
-```bash
-git clone https://github.com/robdon3/osm-4x-grand-strategy.git
-# Copy scripts into your Unity project:
-cp -R osm-4x-grand-strategy/Assets/Scripts /path/to/Osm4x/Assets/
-```
+`ChunkManager` looks up that shader when no terrain material is assigned. It also tries `Sprites/Default` and `Universal Render Pipeline/Unlit`.
 
-Or open this folder as a Unity project once you add `ProjectSettings` via Hub “Add project from disk” after creating a blank URP project and merging folders.
+A scene that exercises the scripts needs:
 
-## 3. ArcGIS Maps SDK for Unity
+1. A `WorldConfig` object (chunks do not build without it).
+2. A `GameModeController` object.
+3. A `ChunkManager` object.
+4. A camera with `StrategicCameraController`.
 
-1. Create a free account at [Esri Developers](https://developers.arcgis.com/).
-2. Generate an **API key** with location services / basemaps enabled.
-3. Install **ArcGIS Maps SDK for Unity** from the Asset Store or Esri docs (v2.2+ recommended for OSM 3D buildings).
-4. Add API key via the SDK’s authentication / map component settings (do **not** commit keys — use `Secrets/` gitignored or UserSettings).
+`TacticalTransitionController`, `HexGridOverlay`, and `TacticalBattleBootstrap` are optional. In the editor or a development build, **B** on the transition component calls `BeginBattleAt` with the camera position, and **N** returns to `Strategic`.
 
-## 4. Recommended packages
+That scene is still the procedural mesh and the mode stubs. It does not add a globe, OSM tiles, or ArcGIS.
 
-Via Package Manager:
-
-- **Cinemachine** (camera orbits + transitions)
-- **AI Navigation** (NavMesh for tactical)
-- **Burst** + **Collections** + **Mathematics** (Jobs path later)
-
-## 5. Minimal scene checklist
-
-1. Empty scene `StrategicGlobe`.
-2. ArcGIS Map component — globe mode, OSM basemap, elevation, 3D buildings layer.
-3. Main Camera + `StrategicCameraController`.
-4. Empty `GameSystems` object with `GameModeController` + `ChunkManager`.
-5. Optional: Cinemachine FreeLook; bind zoom to altitude thresholds that call `GameModeController.SetMode`.
-
-## 6. OSM sample data (Phase 1)
-
-- [Geofabrik](https://download.geofabrik.de/) — small region `.osm.pbf`
-- Store under `Data/OSM/` (gitignored)
-- Dev queries: [Overpass Turbo](https://overpass-turbo.eu/)
-
-## 7. Fallback without ArcGIS
-
-If ArcGIS is blocked, evaluate **Online Maps** (Infinity Code) for OSM tiles/globe/offline cache and keep the same `GeoMath` / `ChunkManager` interfaces.
-
-## Hardware notes (M4, 16GB)
-
-- Prefer URP over HDRP for RAM/GPU headroom.
-- Enable Metal Graphics Jobs in Player Settings when stable.
-- Profile early with Memory Profiler when enabling 3D buildings at city scale.
->>>>>>> 50e71d0 (Phase 0: architecture docs and Unity C# scaffold for OSM 4X grand strategy)
+`.gitignore` already ignores Unity `Library/`, `Temp/`, and `Obj/`, plus `Secrets/`, `AuthConfig.asset`, and `Data/OSM` `.pbf` / `.osm` files. None of those data paths are populated in this repo.
