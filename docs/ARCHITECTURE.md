@@ -1,113 +1,61 @@
-<<<<<<< HEAD
-# Architecture — Procedural 4X (local Python)
+# Architecture
 
-**No Unity.** Runs on macOS with Python + pygame.
+Two layers live in this repo. The runnable one is a Python and pygame skirmish on a fixed 12×6 board. The Unity C# under `Assets/Scripts/` is a Phase 0 scaffold for a later OpenStreetMap / ArcGIS grand strategy game. The scaffold does not load map data, and this repo has no Unity project.
 
-## Goal
+## Runnable prototype
 
-A **generative map** (Minecraft-style), not a real one:
-
-- Single **seed** defines the world
-- Deterministic noise → height, moisture, temperature, biomes
-- **Chunk streaming** so only nearby terrain is generated
-
-## Stack
-
-| Piece | Choice |
-|-------|--------|
-| Language | Python 3 |
-| Window / input | pygame (SDL) |
-| Arrays / noise | numpy |
-| Platform | macOS Apple Silicon |
-
-## Pipeline
+`proc4x/app.py` builds one 12×6 board and draws it. It does not stream chunks or pan a camera across a larger world. `WorldConfig.chunk_size` is unused by the app.
 
 ```
 WorldConfig(seed)
-    → WorldSampler (perlin noise layers)
-    → height + biome per cell
-    → ChunkCache (pygame surfaces)
-    → camera pans; chunks load around view
+    → WorldSampler (layered noise)
+    → height + biome on a 12×6 grid
+    → GameState (ownership, armies, turns)
+    → pygame window
 ```
 
-## Modules
+`Board` in `app.py` overrides the sampler scales and uses sea level 0.38. Cell centers are spaced 48 world units apart. The same seed rebuilds the same grid.
 
-- `proc4x/world.py` — config, noise, biomes, height
-- `proc4x/app.py` — game loop, camera, HUD, rendering
+| Module | Role |
+|--------|------|
+| `proc4x/world.py` | Seed offsets, permutation-table noise, height, temperature, moisture, biomes |
+| `proc4x/game.py` | Capitals, territory, orthogonal land movement, combat, enemy turn |
+| `proc4x/app.py` | Window, input, ownership tint, reachable overlay, armies |
 
-## Future (optional)
+Biomes are ocean, beach, plains, forest, desert, savanna, tundra, snow, mountains, and swamp. Ocean is not walkable. Each side has one army (10 HP, 1 orthogonal move). Moving claims land. Stepping onto the other army removes it, costs the attacker 3 HP (never below 1), and ends the move. Pressing **E** runs the enemy once: it steps toward your army and prefers an attack. Win, loss, and draw depend on which armies remain.
 
-- True 3D heightmesh (moderngl) without Unity
-- Hex strategic overlay for 4X systems
-- Fog of war, cities, turn loop
-=======
-# Architecture — OSM 4X Grand Strategy
+Dependencies are `pygame` and `numpy`. The app opens a window and does not use the network.
 
-Target: **macOS M4 Silicon, 16GB RAM** · Peak play budget **&lt; 8GB**.
+## Unity Phase 0 scaffold
 
-## Visual model: seamless strategic ↔ tactical
-
-| Layer | Altitude / scale | Content |
-|-------|------------------|---------|
-| **Strategic** | Global / continental | Abstracted hex/tiles on OSM basemap, city markers, simplified roads, elevation tint, low-detail shaders |
-| **Transition** | Cinematic fly-in | Cinemachine spline + DOF + vignette to a GPS focus |
-| **Tactical** | City / battlefield | Extruded OSM buildings (height tags), road splines, water, elevation mesh, NavMesh, units |
-
-**Enabler:** Dynamic LOD + **chunk-based detail swap**. Around ~10 km altitude, swap to full OSM vector features + procedural foliage. Battles use physics/NavMesh on real terrain (roads/buildings as cover).
-
-## Technical stack (2026)
-
-| Concern | Choice | Notes |
-|---------|--------|-------|
-| Engine | **Unity 6.x LTS** (URP) | Native Metal, MetalFX upscale path |
-| Language | C# + Burst/Jobs | Geo transforms, pathfinding hot paths |
-| Primary GIS | **ArcGIS Maps SDK for Unity** (v2.2+) | OSM 3D buildings, elevation, globe, streaming |
-| Fallback GIS | Online Maps (Infinity Code) | Lighter OSM tiles/globe/offline cache |
-| Avoid | Mapbox Unity SDK v2 | Maintenance-only; v3 delayed |
-| Offline OSM | libosmium / OSMSharp plugins | PBF parse; Overpass for dev queries |
-| Prebaked 3D | OSM2World → glTF | Optional building bake pipeline |
-| Streaming | Addressables + async | Chunk prefabs |
-
-## Chunking & memory
-
-- **Chunk size:** 0.5°–1° lat/long (~50–110 km side).
-- **Contents per chunk:** elevation mesh, vector buildings/roads (combined mesh or instances), LOD groups.
-- **Load window:** 5×5 around focus; unload outer ring; prioritize frustum + distance.
-- **Hybrid data:** OSM vectors for truth (roads, cities); Perlin/procedural for forests/fill.
-- **RAM mitigations:** aggressive unload, GPU instancing, mesh compression, texture atlases, Metal residency only for active chunks.
+Namespaces are `Osm4x.*`. There are no scenes, `ProjectSettings`, or a package manifest. Nothing references the ArcGIS SDK or reads OpenStreetMap data. There is no `Assets/Scripts/GIS/` directory and no `GeoMath` type. Chunk coordinates are a local XZ grid, not latitude and longitude. `GameModeController` stores a world XZ focus, not GPS.
 
 ```
-                ┌─────────────────────────┐
-                │   StrategicCamera       │
-                │   (orbit + zoom alt)    │
-                └───────────┬─────────────┘
-                            │ altitude / mode
-                ┌───────────▼─────────────┐
-                │   GameModeController    │
-                │ Strategic | Transition  │
-                │         | Tactical      │
-                └───────────┬─────────────┘
-            ┌───────────────┼───────────────┐
-            ▼               ▼               ▼
-     ArcGIS Map        ChunkManager    TacticalBattle
-     (globe/stream)    (5×5 grid)      (NavMesh/units)
+WorldConfig (seed, noise scales, chunk size, cell size)
+    → NoiseSampler + BiomeClassifier
+    → ChunkMeshBuilder (colored height mesh)
+    → ChunkManager (square window around the camera)
+    → GameModeController (Strategic | Transition | Tactical)
 ```
 
-## Coordinate pipeline
+| Path | Behavior in the script |
+|------|------------------------|
+| `Core/WorldConfig.cs` | One singleton. `ApplySeed` derives three noise offsets from the seed. Defaults include chunk size 16, cell size 1, sea level 0.42. |
+| `Core/GameModeController.cs` | Modes `Strategic`, `Transition`, `Tactical`. `BeginBattleAt` stores a world position and enters `Transition`. |
+| `WorldGen/NoiseSampler.cs` | `Mathf.PerlinNoise` layers for continental, elevation, temperature, moisture, and surface height. |
+| `WorldGen/BiomeClassifier.cs` | Same biome list as the Python sampler, with vertex colors. |
+| `Chunks/ChunkCoord.cs` | `Floor` of world X/Z divided by chunk size times cell size. |
+| `Chunks/ChunkManager.cs` | Keeps a square of chunks around the follow target or the main camera. Default `loadRadius` is 3, refreshed every 0.25s. Missing `WorldConfig` logs a warning and skips the build. |
+| `Chunks/ChunkMeshBuilder.cs` | One height mesh per chunk, vertex colors from the biome classifier. |
+| `Chunks/MapChunk.cs` | Mesh filter, renderer, and mesh collider. `Unload` destroys the mesh and the object. |
+| `Camera/StrategicCameraController.cs` | Pans on the Horizontal/Vertical axes, speeds up with Left Shift, zooms with the mouse wheel, pitch fixed at 50°. No input during `Transition`. Height is clamped from 8 to 400. |
+| `Camera/TacticalTransitionController.cs` | On `Transition`, lerps the camera to the focus (default height 25, duration 1.8s) and then enters `Tactical`. In the editor or a development build, **B** starts that fly-in at the camera and **N** returns to `Strategic`. |
+| `Strategy/HexGridOverlay.cs` | Activates its own object in `Strategic` and deactivates it otherwise. It does not build a hex mesh. |
+| `Tactical/TacticalBattleBootstrap.cs` | On entering `Tactical`, spawns the assigned prefab, or capsules, in a disk around the focus. Default count is 6 and radius is 20. No pathfinding and no combat. |
+| `Assets/Shaders/VertexColorUnlit.shader` | Shader name `Proc4x/VertexColorUnlit`. `ChunkManager` uses it when no terrain material is assigned, otherwise `Sprites/Default` or `Universal Render Pipeline/Unlit`. |
 
-1. **GPS** `(lat, lon, elev)` — source of truth for placement and saves.
-2. **GeoMath** — spherical / ECEF helpers (Burst-ready); ArcGIS also provides surface placement when the map component is active.
-3. **ChunkCoord** — quantize lat/lon to tile indices for load/unload.
+The mode names and the fly-in are the scaffold’s stand-in for a later strategic map and a tactical battle. They are not a globe, a basemap, extruded buildings, or a NavMesh battle.
 
-## Performance targets
+## License
 
-- 60 FPS strategic orbit on M4 (MetalFX OK for tactical fill rate).
-- Chunk swap without hitch &gt; 100 ms (async Addressables).
-- Peak RAM &lt; 8GB with 5×5 tactical-ready window in one metro region.
-
-## Licensing notes
-
-- **OSM:** ODbL attribution required in UI/credits.
-- **ArcGIS Maps SDK:** free for development; commercial production needs Esri licensing review.
-- **Game code in this repo:** MIT.
->>>>>>> 50e71d0 (Phase 0: architecture docs and Unity C# scaffold for OSM 4X grand strategy)
+Code in this repo is MIT. See [LICENSE](../LICENSE).

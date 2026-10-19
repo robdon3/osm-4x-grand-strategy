@@ -88,7 +88,7 @@ What the scripts actually contain:
 | `Tactical/TacticalBattleBootstrap.cs` | On entering `Tactical`, spawns placeholder capsules, or an assigned prefab, around the focus. No pathfinding and no combat. |
 | `Assets/Shaders/VertexColorUnlit.shader` | Unlit vertex-color shader (`Proc4x/VertexColorUnlit`) used when no terrain material is assigned. |
 
-`docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `docs/SETUP.md` are the written notes for that larger map-based game. Those three files still contain unresolved merge-conflict markers, so they are not a settled spec. Read `Assets/Scripts/` for what is actually scaffolded.
+`docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `docs/SETUP.md` describe the runnable prototype and this Phase 0 scaffold. They match the code in `proc4x/` and `Assets/Scripts/`.
 
 ## License
 
