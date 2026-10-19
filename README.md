@@ -1,26 +1,25 @@
-<<<<<<< HEAD
-# Proc4x — 12×6 procedural skirmish (local Mac)
+# Proc4x
 
-A tiny **4X-style skirmish** on a fixed **12×6** board.  
-No Unity. No real maps. Python + pygame only.
+Two things are in this repo. The one you can run is a Python and pygame skirmish on a fixed **12×6** procedural board (`proc4x/`, `run.sh`). The Unity C# under `Assets/Scripts/` and the notes in `docs/` are a Phase 0 scaffold for an OpenStreetMap / ArcGIS grand strategy game. That scaffold is not a game you can play.
 
-## What you do
+## Playable prototype
 
-1. A **procedural map** generates from a seed (biomes + ocean).
-2. You and the **enemy** each get a **capital territory** and **one army**.
-3. On your turn: **select your army** → **move** to a green highlighted tile (capture land).
-4. Step onto the **enemy army** to **fight** (you win the fight and take the tile).
-5. Press **E** to **end turn** — the enemy AI moves.
-6. **Destroy the enemy army** to win.
+`python -m proc4x.app` opens a window titled **Proc4x — 12×6 Skirmish**. A seed builds height and biomes. You and the enemy each start with one army and a small territory. Destroy the enemy army to win.
 
-## Run
+The board is always 12 columns by 6 rows. Ocean tiles are not walkable. Biomes are ocean, beach, plains, forest, desert, savanna, tundra, snow, mountains, and swamp. The same seed rebuilds the same map.
+
+### Run
+
+From the repo root, with Python 3.10 or newer and a display:
 
 ```bash
-cd ~/osm-4x-grand-strategy
 ./run.sh
-# or:
 ./run.sh 12345
 ```
+
+`run.sh` creates `.venv` on first launch, installs `requirements.txt` (`pygame>=2.5.0`, `numpy>=1.26.0`), and runs `python -m proc4x.app`. An optional integer argument is the map seed. If you omit it, the seed is **42**. A non-integer argument prints usage and exits with status 2.
+
+The same steps by hand:
 
 ```bash
 python3 -m venv .venv
@@ -29,96 +28,68 @@ pip install -r requirements.txt
 python -m proc4x.app 42
 ```
 
-## Controls
+### Controls
 
 | Key | Action |
 |-----|--------|
-| **WASD** / arrows | Move cursor |
-| **Click** / Enter / Space | Select army or move there |
-| **E** | End turn (enemy moves) |
-| **R** | New random map + game |
-| **[** **]** | Seed ±1 |
-| **F** | Height shading |
+| **WASD** / arrows | Move the cursor (it wraps) |
+| **Click** / Enter / Space | Select your army, or move it to that tile |
+| **E** | End your turn; the enemy moves immediately |
+| **R** | New random seed and a new game |
+| **[** / **]** | Seed minus or plus 1, then a new game |
+| **F** | Toggle height shading (on at start) |
 | **ESC** | Quit |
 
-## Legend
+The window is resizable.
 
-- **Blue circle** — your army  
-- **Red circle** — enemy army  
-- **Blue tint** — your land  
-- **Red tint** — enemy land  
-- **Green overlay** — reachable this turn  
+### What a turn does
 
-## Layout
+1. Capitals are the two land tiles farthest apart (Manhattan distance). Each side claims that tile and its orthogonal land neighbors, and places one army there (10 HP, 1 move). If a seed has fewer than two land tiles, the corners are forced to plains.
+2. Your army starts selected. Green tiles are the orthogonal land tiles it can reach this turn, including the enemy army's tile. You cannot enter ocean or a tile occupied by your own army.
+3. Moving onto an empty land tile claims it. Stepping onto the enemy army removes that army, costs the attacker 3 HP (never below 1), claims the tile, and ends the move.
+4. **E** runs the enemy once. It steps toward your army and prefers a tile that attacks you. Then it is your turn again and both armies refresh their move.
+5. If the enemy army is gone and yours remains, you win. If yours is gone and the enemy remains, you lose. If neither army remains, the game calls it a draw.
+
+### On the board
+
+- Blue circle — your army
+- Red circle — enemy army
+- Blue tint — your land
+- Red tint — enemy land
+- Green overlay — reachable this turn
+- Yellow ring — selected army
+- White outline — cursor
+
+### Files
 
 ```
-proc4x/
-  world.py   # noise, biomes
-  game.py    # turns, ownership, combat, AI
-  app.py     # pygame UI
+proc4x/world.py    seed, noise, height, biomes
+proc4x/game.py     ownership, movement, combat, enemy turn
+proc4x/app.py      pygame window, input, drawing
 run.sh
 requirements.txt
 ```
 
-## License
+## Unity Phase 0 scaffold
 
-MIT
-=======
-# OSM 4X Grand Strategy
+`Assets/Scripts/` is C# (`Osm4x.*`) for a later grand strategy game that would use OpenStreetMap and ArcGIS. This repository does not contain a Unity project: there are no scenes, `ProjectSettings`, or package manifest, and nothing here loads OSM data or the ArcGIS SDK. There is no `Assets/Scripts/GIS/` directory. Dropping these scripts into an editor project would still not produce that game.
 
-**OSM-powered 4X grand strategy** for macOS (Apple Silicon / M4, 16GB RAM target).
+What the scripts actually contain:
 
-Seamless **strategic globe ↔ tactical battle** zoom over real-world OpenStreetMap data, built on **Unity 6 + Metal**.
+| Path | What it does |
+|------|----------------|
+| `Core/WorldConfig.cs` | Seed and noise settings. The same seed sets the same noise offsets. |
+| `Core/GameModeController.cs` | Modes `Strategic`, `Transition`, and `Tactical`. The focus point is world XZ, not GPS. |
+| `WorldGen/` | Perlin height, temperature, moisture, and the same biome list as the Python map. |
+| `Chunks/` | A square of chunks around the camera (default radius 3). Coordinates are an XZ grid, not latitude/longitude. Each chunk is a height mesh colored by biome. |
+| `Camera/StrategicCameraController.cs` | Pan and zoom over that mesh. It does not orbit a globe. Input is skipped during `Transition`. |
+| `Camera/TacticalTransitionController.cs` | Lerps the camera to the focus, then enters `Tactical`. In the editor or a development build, **B** starts that fly-in at the camera and **N** returns to `Strategic`. |
+| `Strategy/HexGridOverlay.cs` | Shows or hides its own object when the mode changes. It does not build hexes. |
+| `Tactical/TacticalBattleBootstrap.cs` | On entering `Tactical`, spawns placeholder capsules, or an assigned prefab, around the focus. No pathfinding and no combat. |
+| `Assets/Shaders/VertexColorUnlit.shader` | Unlit vertex-color shader (`Proc4x/VertexColorUnlit`) used when no terrain material is assigned. |
 
-| | |
-|---|---|
-| **Engine** | Unity 6.x LTS (URP) |
-| **GIS** | ArcGIS Maps SDK for Unity (primary) · Online Maps fallback |
-| **Platform** | macOS Apple Silicon (Metal) |
-| **Language** | C# · Burst/Jobs for geo math |
-| **Repo** | https://github.com/robdon3/osm-4x-grand-strategy |
-
----
-
-## Vision
-
-- **Strategic layer** — 3D globe, abstracted tiles/hexes on OSM basemaps, major cities, simplified roads, elevation tint. Civ-style free orbit.
-- **Tactical transition** — Fly-in to real GPS coords; extruded OSM buildings, road splines, water, elevation terrain. Total War–style battles on NavMesh chunks.
-- **Key enabler** — Dynamic LOD + lat/long chunk streaming so global exploration stays fluid and battles load rich local detail under **~8GB peak RAM**.
-
-## Repo layout
-
-```
-docs/                  Architecture, roadmap, Unity setup
-Assets/Scripts/
-  Core/                Geo math, game modes
-  Camera/              Strategic orbit + cinematic tactical transition
-  Chunks/              Lat/long tile load/unload manager
-  GIS/                 ArcGIS bootstrap stubs, coordinates
-  Strategy/            Hex overlay helpers
-  Tactical/            Battle bootstrap / NavMesh hooks
-```
-
-This repo ships **production-oriented C# prototypes** you drop into a Unity 6 project. Full Unity project files (Library/, etc.) are not committed — generate them locally via Unity Hub (see [docs/SETUP.md](docs/SETUP.md)).
-
-## Quick start
-
-1. Install **Unity Hub** + **Unity 6.x LTS** (Apple Silicon editor).
-2. Create a new **3D (URP)** project, then copy `Assets/Scripts/` into it.
-3. Import **ArcGIS Maps SDK for Unity** (Esri free dev account).
-4. Follow [docs/SETUP.md](docs/SETUP.md) and Phase 0 in [docs/ROADMAP.md](docs/ROADMAP.md).
-
-## Documentation
-
-- [Architecture](docs/ARCHITECTURE.md) — stack, LOD, chunking, RAM budget
-- [Roadmap](docs/ROADMAP.md) — Phase 0 → MVP map (3–6 weeks solo)
-- [Setup](docs/SETUP.md) — Unity + ArcGIS on macOS
-
-## Status
-
-**Phase 0 kickoff** — architecture locked, core scripts scaffolded, GitHub project live.
+`docs/ARCHITECTURE.md`, `docs/ROADMAP.md`, and `docs/SETUP.md` are the written notes for that larger map-based game. Those three files still contain unresolved merge-conflict markers, so they are not a settled spec. Read `Assets/Scripts/` for what is actually scaffolded.
 
 ## License
 
-MIT — see [LICENSE](LICENSE). OSM data remains under [ODbL](https://www.openstreetmap.org/copyright); ArcGIS SDK usage is subject to Esri terms.
->>>>>>> 50e71d0 (Phase 0: architecture docs and Unity C# scaffold for OSM 4X grand strategy)
+MIT. See [LICENSE](LICENSE).
